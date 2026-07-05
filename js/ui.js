@@ -964,6 +964,460 @@ function downloadTemplate() {
     showNotification('Template downloaded!', 'success');
 }
 
+// ============================================
+// EXPORT FUNCTIONS FOR TIMERS
+// ============================================
+
+function exportTimers(type, format) {
+    const members = type === 'first' ? DB.getFirstTimers() : DB.getSecondTimers();
+    const label = type === 'first' ? 'First Timers' : 'Second Timers';
+    
+    if (members.length === 0) {
+        showNotification(`No ${label} to export`, 'warning');
+        return;
+    }
+    
+    // Prepare data for export
+    const data = members.map((m, i) => ({
+        'S/N': i + 1,
+        'Name': m.name,
+        'Phone': m.phone || '',
+        'Gender': m.gender || '',
+        'Address': m.address || '',
+        'DOB': m.dob || '',
+        'Marital Status': m.maritalStatus || '',
+        'Worker': m.worker || 'No'
+    }));
+    
+    if (format === 'excel') {
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(data);
+        XLSX.utils.book_append_sheet(wb, ws, label);
+        XLSX.writeFile(wb, `${label}_${new Date().toISOString().split('T')[0]}.xlsx`);
+        showNotification(`${label} exported to Excel!`, 'success');
+    } else if (format === 'pdf') {
+        // Simple text export as PDF-like format
+        let text = `${label} Report\n`;
+        text += `Generated: ${new Date().toLocaleString()}\n`;
+        text += `${'='.repeat(50)}\n\n`;
+        data.forEach(row => {
+            text += `${row['S/N']}. ${row.Name}`;
+            if (row.Phone) text += ` | 📱 ${row.Phone}`;
+            if (row.Address) text += ` | 📍 ${row.Address}`;
+            text += '\n';
+        });
+        text += `\n${'='.repeat(50)}\n`;
+        text += `Total: ${data.length} ${label}`;
+        
+        // Create and download as text file
+        const blob = new Blob([text], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${label}_${new Date().toISOString().split('T')[0]}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        showNotification(`${label} exported as text!`, 'success');
+    } else if (format === 'word') {
+        let html = `
+            <html>
+            <head>
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 20px; }
+                    h1 { color: #6C3CE1; text-align: center; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th { background: #6C3CE1; color: white; padding: 10px; text-align: left; }
+                    td { padding: 8px 10px; border-bottom: 1px solid #ddd; }
+                    .total { margin-top: 20px; font-weight: bold; text-align: right; }
+                </style>
+            </head>
+            <body>
+                <h1>⛪ ${label} Report</h1>
+                <p>Generated: ${new Date().toLocaleString()}</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Name</th>
+                            <th>Phone</th>
+                            <th>Gender</th>
+                            <th>Address</th>
+                            <th>DOB</th>
+                            <th>Marital Status</th>
+                            <th>Worker</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.map(row => `
+                            <tr>
+                                <td>${row['S/N']}</td>
+                                <td>${row.Name}</td>
+                                <td>${row.Phone}</td>
+                                <td>${row.Gender}</td>
+                                <td>${row.Address}</td>
+                                <td>${row.DOB}</td>
+                                <td>${row['Marital Status']}</td>
+                                <td>${row.Worker}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                <div class="total">Total: ${data.length} ${label}</div>
+            </body>
+            </html>
+        `;
+        
+        const blob = new Blob([html], { type: 'application/msword' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${label}_${new Date().toISOString().split('T')[0]}.doc`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        showNotification(`${label} exported to Word!`, 'success');
+    } else if (format === 'share') {
+        // Generate shareable text
+        let text = `📊 ${label} Report\n`;
+        text += `📅 ${new Date().toLocaleString()}\n`;
+        text += `${'─'.repeat(40)}\n\n`;
+        data.slice(0, 20).forEach(row => {
+            text += `${row['S/N']}. ${row.Name}`;
+            if (row.Phone) text += ` 📱${row.Phone}`;
+            text += '\n';
+        });
+        if (data.length > 20) {
+            text += `\n... and ${data.length - 20} more`;
+        }
+        text += `\n\n${'─'.repeat(40)}\n`;
+        text += `Total: ${data.length} ${label}`;
+        
+        // Copy to clipboard
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text).then(() => {
+                showNotification(`${label} report copied to clipboard! Share it anywhere.`, 'success');
+            }).catch(() => {
+                // Fallback
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                showNotification(`${label} report copied to clipboard!`, 'success');
+            });
+        } else {
+            // Fallback for older browsers
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showNotification(`${label} report copied to clipboard!`, 'success');
+        }
+    }
+}
+
+// ============================================
+// EXPORT ABSENTEES
+// ============================================
+
+function exportAbsentees(format) {
+    const days = parseInt(document.getElementById('absentPeriod').value) || 30;
+    const riskLevel = document.getElementById('absentRiskLevel').value || 'all';
+    const workerFilter = document.getElementById('absentWorkerFilter').value || 'all';
+    
+    const absentees = DB.getAbsentMembers(days, riskLevel, workerFilter);
+    
+    if (absentees.length === 0) {
+        showNotification('No absentees to export', 'warning');
+        return;
+    }
+    
+    const data = absentees.map((m, i) => {
+        const daysAbsent = DB.getDaysSinceLastVisit(m.id);
+        let riskLabel = 'Low';
+        if (daysAbsent > 60) riskLabel = 'High';
+        else if (daysAbsent > 30) riskLabel = 'Medium';
+        return {
+            'S/N': i + 1,
+            'Name': m.name,
+            'Phone': m.phone || '',
+            'Address': m.address || '',
+            'Days Absent': daysAbsent,
+            'Risk Level': riskLabel,
+            'Worker': m.worker || 'No'
+        };
+    });
+    
+    if (format === 'excel') {
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(data);
+        XLSX.utils.book_append_sheet(wb, ws, 'At Risk Members');
+        XLSX.writeFile(wb, `At_Risk_Members_${new Date().toISOString().split('T')[0]}.xlsx`);
+        showNotification('At Risk members exported to Excel!', 'success');
+    } else if (format === 'share') {
+        let text = `⚠️ AT RISK MEMBERS REPORT\n`;
+        text += `📅 ${new Date().toLocaleString()}\n`;
+        text += `${'─'.repeat(40)}\n\n`;
+        data.forEach(row => {
+            const emoji = row['Risk Level'] === 'High' ? '🔴' : row['Risk Level'] === 'Medium' ? '🟡' : '🟢';
+            text += `${row['S/N']}. ${row.Name} - ${emoji} ${row['Risk Level']} (${row['Days Absent']} days)\n`;
+        });
+        text += `\n${'─'.repeat(40)}\n`;
+        text += `Total: ${data.length} members at risk`;
+        
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text).then(() => {
+                showNotification('At Risk report copied to clipboard!', 'success');
+            }).catch(() => {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                showNotification('At Risk report copied to clipboard!', 'success');
+            });
+        } else {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showNotification('At Risk report copied to clipboard!', 'success');
+        }
+    }
+}
+
+// ============================================
+// EXPORT TODAY ATTENDANCE
+// ============================================
+
+function exportTodayAttendance(format) {
+    const today = new Date().toISOString().split('T')[0];
+    const attendance = DB.getAttendance().filter(a => a.date === today);
+    
+    if (attendance.length === 0) {
+        showNotification('No attendance today to export', 'warning');
+        return;
+    }
+    
+    const data = attendance.map((a, i) => {
+        const m = DB.getMemberById(a.memberId);
+        return {
+            'S/N': i + 1,
+            'Name': m ? m.name : 'Unknown',
+            'Phone': m ? m.phone || '' : '',
+            'Service': a.serviceType || 'Sunday AM',
+            'Worker': m ? m.worker || 'No' : 'No'
+        };
+    });
+    
+    if (format === 'excel') {
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(data);
+        XLSX.utils.book_append_sheet(wb, ws, 'Today Attendance');
+        XLSX.writeFile(wb, `Today_Attendance_${today}.xlsx`);
+        showNotification('Today attendance exported to Excel!', 'success');
+    } else if (format === 'share') {
+        let text = `✅ TODAY'S ATTENDANCE (${today})\n`;
+        text += `${'─'.repeat(40)}\n\n`;
+        data.forEach(row => {
+            text += `${row['S/N']}. ${row.Name}`;
+            if (row.Phone) text += ` 📱${row.Phone}`;
+            text += ` - ${row.Service}\n`;
+        });
+        text += `\n${'─'.repeat(40)}\n`;
+        text += `Total: ${data.length} members`;
+        
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text).then(() => {
+                showNotification('Today attendance copied to clipboard!', 'success');
+            }).catch(() => {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                showNotification('Today attendance copied to clipboard!', 'success');
+            });
+        } else {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showNotification('Today attendance copied to clipboard!', 'success');
+        }
+    } else if (format === 'pdf' || format === 'word') {
+        // For PDF and Word, use text format
+        let text = `Today's Attendance Report\n`;
+        text += `Date: ${today}\n`;
+        text += `${'='.repeat(50)}\n\n`;
+        data.forEach(row => {
+            text += `${row['S/N']}. ${row.Name}`;
+            if (row.Phone) text += ` - ${row.Phone}`;
+            text += ` (${row.Service})\n`;
+        });
+        text += `\n${'='.repeat(50)}\n`;
+        text += `Total: ${data.length} members`;
+        
+        const blob = new Blob([text], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Today_Attendance_${today}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        showNotification('Today attendance exported!', 'success');
+    }
+}
+
+// ============================================
+// EXPORT MEMBERS
+// ============================================
+
+function exportMembers(format) {
+    const members = DB.getMembers();
+    
+    if (members.length === 0) {
+        showNotification('No members to export', 'warning');
+        return;
+    }
+    
+    const data = members.map((m, i) => ({
+        'S/N': i + 1,
+        'Name': m.name,
+        'Phone': m.phone || '',
+        'Gender': m.gender || '',
+        'Address': m.address || '',
+        'DOB': m.dob || '',
+        'Marital Status': m.maritalStatus || '',
+        'Worker': m.worker || 'No',
+        'Visit Count': DB.getMemberVisitCount(m.id)
+    }));
+    
+    if (format === 'excel') {
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(data);
+        XLSX.utils.book_append_sheet(wb, ws, 'All Members');
+        XLSX.writeFile(wb, `All_Members_${new Date().toISOString().split('T')[0]}.xlsx`);
+        showNotification('All members exported to Excel!', 'success');
+    } else if (format === 'share') {
+        let text = `👥 ALL MEMBERS REPORT\n`;
+        text += `📅 ${new Date().toLocaleString()}\n`;
+        text += `${'─'.repeat(40)}\n\n`;
+        data.slice(0, 30).forEach(row => {
+            text += `${row['S/N']}. ${row.Name}`;
+            if (row.Phone) text += ` 📱${row.Phone}`;
+            if (row.Address) text += ` 📍${row.Address}`;
+            text += ` (${row['Visit Count']} visits)\n`;
+        });
+        if (data.length > 30) {
+            text += `\n... and ${data.length - 30} more members`;
+        }
+        text += `\n\n${'─'.repeat(40)}\n`;
+        text += `Total: ${data.length} members`;
+        
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text).then(() => {
+                showNotification('Members list copied to clipboard!', 'success');
+            }).catch(() => {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                showNotification('Members list copied to clipboard!', 'success');
+            });
+        } else {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showNotification('Members list copied to clipboard!', 'success');
+        }
+    } else if (format === 'pdf' || format === 'word') {
+        let html = `
+            <html>
+            <head>
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 20px; }
+                    h1 { color: #6C3CE1; text-align: center; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th { background: #6C3CE1; color: white; padding: 10px; text-align: left; }
+                    td { padding: 8px 10px; border-bottom: 1px solid #ddd; }
+                    .total { margin-top: 20px; font-weight: bold; text-align: right; }
+                </style>
+            </head>
+            <body>
+                <h1>⛪ All Members Report</h1>
+                <p>Generated: ${new Date().toLocaleString()}</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Name</th>
+                            <th>Phone</th>
+                            <th>Gender</th>
+                            <th>Address</th>
+                            <th>DOB</th>
+                            <th>Marital Status</th>
+                            <th>Worker</th>
+                            <th>Visits</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.map(row => `
+                            <tr>
+                                <td>${row['S/N']}</td>
+                                <td>${row.Name}</td>
+                                <td>${row.Phone}</td>
+                                <td>${row.Gender}</td>
+                                <td>${row.Address}</td>
+                                <td>${row.DOB}</td>
+                                <td>${row['Marital Status']}</td>
+                                <td>${row.Worker}</td>
+                                <td>${row['Visit Count']}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                <div class="total">Total: ${data.length} members</div>
+            </body>
+            </html>
+        `;
+        
+        const blob = new Blob([html], { type: 'application/msword' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `All_Members_${new Date().toISOString().split('T')[0]}.doc`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        showNotification('All members exported to Word!', 'success');
+    }
+}
+
+// ============================================
+// LOAD ALL VIEWS
+// ============================================
+
 function loadAllViews() {
     loadTodayAttendance();
     loadMembers();
