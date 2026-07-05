@@ -614,7 +614,9 @@ function parseMemberLine(line) {
     const addressKeywords = [
         'Dalemo', 'Sango', 'Sona', 'Alishiba', 'Ojuore', 'Tarmac', 
         'Tollgate', 'Kola', 'Joju', 'Ijako', 'Obasanjo', 'Temidire',
-        'Iloye', 'Singer', 'Alakuko', 'Iloje', 'Alagbado'
+        'Iloye', 'Singer', 'Alakuko', 'Iloje', 'Alagbado', 'Atan',
+        'Abule Iroko', 'Ijoko', 'Mosalashi', 'Itori', 'Kola',
+        'Tarmac', 'Saka'
     ];
     
     for (const keyword of addressKeywords) {
@@ -769,7 +771,10 @@ function clearPaste() {
     document.getElementById('pasteResult').innerHTML = '';
 }
 
-// Excel Import
+// ============================================
+// EXCEL IMPORT FUNCTIONS - FIXED FOR YOUR DATA
+// ============================================
+
 function handleFileImport(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -782,25 +787,70 @@ function handleFileImport(event) {
             const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
             const jsonData = XLSX.utils.sheet_to_json(firstSheet);
             
-            const members = jsonData.map(row => ({
-                name: row.Name || row.name || '',
-                phone: row.Phone || row.phone || '',
-                address: row.Address || row.address || '',
-                gender: row.Gender || row.gender || '',
-                dob: row.DOB || row.dob || '',
-                maritalStatus: row.MaritalStatus || row.maritalStatus || row['Marital Status'] || '',
-                worker: row.Worker || row.worker || 'No'
-            })).filter(m => m.name.trim());
+            console.log('📊 Found columns:', Object.keys(jsonData[0] || {}));
+            console.log('📊 Total rows:', jsonData.length);
+            
+            // Map columns - handles your specific column names
+            const members = jsonData.map((row, index) => {
+                // Helper to get value case-insensitively
+                const getValue = (keys) => {
+                    for (const key of keys) {
+                        // Check if key exists in row (case insensitive)
+                        const foundKey = Object.keys(row).find(k => 
+                            k.toLowerCase().trim() === key.toLowerCase().trim()
+                        );
+                        if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null) {
+                            const val = String(row[foundKey]).trim();
+                            // Skip empty values or values that are just numbers (like S/N)
+                            if (val && !/^[\d\.]+$/.test(val)) {
+                                return val;
+                            }
+                            return val;
+                        }
+                    }
+                    return '';
+                };
+                
+                // Map all fields
+                const name = getValue(['Name', 'name', 'Full Name', 'Member Name']);
+                const phone = getValue(['PhoneNo', 'Phone', 'phone', 'Phone Number', 'Telephone']);
+                const gender = getValue(['Gender', 'gender']);
+                const address = getValue(['Bus Stop', 'Address', 'address', 'Location', 'Area']);
+                const dob = getValue(['DOB', 'dob', 'Date of Birth', 'Birthday']);
+                const maritalStatus = getValue(['Marital Status', 'MaritalStatus', 'maritalStatus', 'Status']);
+                
+                // Skip empty rows or rows without a name
+                if (!name || name.length === 0) {
+                    return null;
+                }
+                
+                // Convert "Worker" - we'll default to "No" since it's not in your data
+                const worker = getValue(['Worker', 'worker', 'Worker?', 'Is Worker']);
+                
+                return {
+                    name: name,
+                    phone: phone,
+                    gender: gender,
+                    address: address,
+                    dob: dob,
+                    maritalStatus: maritalStatus,
+                    worker: (worker.toLowerCase() === 'yes' || worker.toLowerCase() === 'y') ? 'Yes' : 'No'
+                };
+            }).filter(m => m !== null && m.name && m.name.length > 0);
+            
+            console.log('📊 Parsed members:', members.length);
             
             if (members.length === 0) {
-                showNotification('No valid members found in file', 'error');
+                showNotification('No valid members found. Make sure you have a "Name" column.', 'error');
                 return;
             }
             
+            // Store in global cache
             importDataCache = members;
             showImportPreview(members);
             
         } catch (error) {
+            console.error('❌ Import error:', error);
             showNotification('Error reading file: ' + error.message, 'error');
         }
     };
@@ -810,18 +860,31 @@ function handleFileImport(event) {
 function showImportPreview(members) {
     const previewDiv = document.getElementById('importPreview');
     const contentDiv = document.getElementById('previewContent');
-    const confirmBtn = previewDiv.querySelector('.btn-success');
+    
+    if (!previewDiv) {
+        console.error('importPreview element not found');
+        return;
+    }
     
     previewDiv.style.display = 'block';
+    previewDiv.classList.add('visible');
+    
+    // Update the confirm button text
+    const confirmBtn = previewDiv.querySelector('.btn-success');
+    if (confirmBtn) {
+        confirmBtn.innerHTML = `<i class="fas fa-check"></i> Import All (${members.length} members)`;
+    }
+    
+    // Build preview table
     contentDiv.innerHTML = `
         <div style="background:#D5F5E3; padding:8px; border-radius:var(--radius-sm); margin-bottom:8px;">
-            Found ${members.length} members ready to import
+            Found <strong>${members.length}</strong> members ready to import
         </div>
         <div class="table-container">
             <table>
                 <thead><tr>
-                    <th>#</th><th>Name</th><th>Phone</th><th>Address</th>
-                    <th>Gender</th><th>DOB</th><th>Status</th>
+                    <th>#</th><th>Name</th><th>Phone</th><th>Gender</th>
+                    <th>Address/Bus Stop</th><th>DOB</th><th>Status</th>
                 </tr></thead>
                 <tbody>
                     ${members.slice(0, 20).map((m, i) => `
@@ -829,8 +892,8 @@ function showImportPreview(members) {
                             <td>${i+1}</td>
                             <td><strong>${m.name}</strong></td>
                             <td>${m.phone || '-'}</td>
-                            <td>${m.address || '-'}</td>
                             <td>${m.gender || '-'}</td>
+                            <td>${m.address || '-'}</td>
                             <td>${m.dob || '-'}</td>
                             <td>${m.maritalStatus || '-'}</td>
                         </tr>
@@ -840,9 +903,6 @@ function showImportPreview(members) {
             </table>
         </div>
     `;
-    
-    confirmBtn.innerHTML = `<i class="fas fa-check"></i> Import All (${members.length} members)`;
-    previewDiv.classList.add('visible');
 }
 
 function confirmImport() {
@@ -864,8 +924,12 @@ function confirmImport() {
         </div>
     `;
     
+    // Hide preview
     document.getElementById('importPreview').style.display = 'none';
+    document.getElementById('importPreview').classList.remove('visible');
     document.getElementById('fileInput').value = '';
+    
+    // Clear cache
     importDataCache = null;
     
     showNotification(`Imported ${result.total} members!`, 'success');
@@ -880,6 +944,7 @@ function confirmImport() {
 
 function cancelImport() {
     document.getElementById('importPreview').style.display = 'none';
+    document.getElementById('importPreview').classList.remove('visible');
     document.getElementById('fileInput').value = '';
     importDataCache = null;
     showNotification('Import cancelled', 'info');
@@ -887,9 +952,9 @@ function cancelImport() {
 
 function downloadTemplate() {
     const template = [
-        ['Name', 'Phone', 'Address', 'Gender', 'DOB', 'MaritalStatus', 'Worker'],
-        ['John Doe', '08012345678', '123 Church St', 'Male', '01/15', 'Married', 'Yes'],
-        ['Jane Smith', '08087654321', '456 Faith Ave', 'Female', '03/22', 'Single', 'No']
+        ['Name', 'PhoneNo', 'Gender', 'Bus Stop', 'DOB', 'Marital Status', 'Worker'],
+        ['John Doe', '08012345678', 'Male', 'Dalemo', '15/01', 'Married', 'Yes'],
+        ['Jane Smith', '08087654321', 'Female', 'Sango', '22/03', 'Single', 'No']
     ];
     
     const wb = XLSX.utils.book_new();
