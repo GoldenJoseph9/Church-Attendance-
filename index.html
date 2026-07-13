@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>⛪ Church Attendance - Usher Edition</title>
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <!-- XLSX -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ===== LOGIN PAGE ===== -->
+<div id="loginPage">
+    <div class="login-box">
+        <div class="logo">⛪</div>
+        <h1>Usher Tracker</h1>
+        <p>Sign in to manage church attendance</p>
+        
+        <div id="loginForm">
+            <div class="form-group">
+                <label>Email Address</label>
+                <input type="email" id="loginEmail" placeholder="you@email.com">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="loginPassword" placeholder="Enter password">
+            </div>
+            <button class="btn btn-primary" onclick="loginUser()">
+                <i class="fas fa-sign-in-alt"></i> Sign In
+            </button>
+            <div class="login-error" id="loginError"></div>
+            
+            <!-- UPDATED VERIFICATION MESSAGE -->
+            <div id="resendVerification" style="display:none; margin-top:12px; padding:16px; background:#FFF3E0; border-radius:8px; text-align:center; border-left:4px solid #F39C12;">
+                <p style="font-size:13px; color:#E67E22; margin-bottom:8px;">
+                    📧 Verification email sent to <strong id="resendEmail"></strong>
+                </p>
+                <p style="font-size:12px; color:#E67E22; margin-bottom:10px;">
+                    ⚠️ Check your <strong>Inbox</strong>, <strong>Spam/Junk</strong>, and <strong>Promotions</strong> folders
+                </p>
+                <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+                    <button class="btn btn-sm btn-primary" onclick="resendVerificationFromLogin()">
+                        <i class="fas fa-envelope"></i> Resend Email
+                    </button>
+                    <button class="btn btn-sm btn-outline" onclick="showLogin()">
+                        <i class="fas fa-sync"></i> Try Again
+                    </button>
+                </div>
+            </div>
+            
+            <div class="toggle-link">
+                Don't have an account? <a onclick="showSignup()">Sign Up</a>
+            </div>
+        </div>
+        
+        <!-- UPGRADED SIGNUP FORM -->
+        <div id="signupForm" style="display:none;">
+            <div class="form-group">
+                <label>Full Name <span style="color:red;">*</span></label>
+                <input type="text" id="signupFullName" placeholder="John Doe">
+            </div>
+            <div class="form-group">
+                <label>Email Address <span style="color:red;">*</span></label>
+                <input type="email" id="signupEmail" placeholder="you@email.com">
+            </div>
+            <div class="form-group">
+                <label>Phone Number</label>
+                <input type="tel" id="signupPhone" placeholder="08012345678">
+            </div>
+            <div class="form-group">
+                <label>Password <span style="color:red;">*</span></label>
+                <input type="password" id="signupPassword" placeholder="Min 6 characters">
+            </div>
+            
+            <!-- Clear approval message -->
+            <div style="background:#EDE9FE; padding:14px; border-radius:8px; margin-bottom:14px; border-left:4px solid #6C3CE1;">
+                <div style="display:flex; align-items:flex-start; gap:10px;">
+                    <span style="font-size:20px;">🔒</span>
+                    <div>
+                        <strong style="color:#5A2FC7;">Account Approval Required</strong>
+                        <p style="font-size:12px; color:#4A4A6A; margin-top:2px;">
+                            1. Verify your email address<br>
+                            2. Wait for admin approval<br>
+                            3. You'll be assigned a role: <strong>MVP</strong> (Timers only) or <strong>Admin</strong> (Full access)
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <button class="btn btn-success btn-block" onclick="signupUser()">
+                <i class="fas fa-user-plus"></i> Request Access
+            </button>
+            <div class="login-error" id="signupError"></div>
+            <div class="toggle-link">
+                Already have an account? <a onclick="showLogin()">Sign In</a>
+            </div>
+        </div>
+        
+        <div id="signupWaiting" style="display:none; text-align:center; padding:20px;">
+            <div style="font-size:48px; margin-bottom:12px;">⏳</div>
+            <h3>Account Pending Approval</h3>
+            <p style="color:var(--gray);">Your request has been sent to the admin.</p>
+            <p style="color:var(--gray); font-size:13px;">You'll receive access once approved and assigned a role.</p>
+            <button class="btn btn-primary" onclick="showLogin()" style="margin-top:12px;">
+                <i class="fas fa-arrow-left"></i> Back to Login
+            </button>
+        </div>
+        
+        <div id="signupVerification" style="display:none; text-align:center; padding:20px;">
+            <div style="font-size:48px; margin-bottom:12px;">📧</div>
+            <h3>Verify Your Email</h3>
+            <p style="color:var(--gray);">We've sent a verification link to</p>
+            <p style="font-weight:700; margin:4px 0;" id="verificationEmail"></p>
+            <p style="color:var(--gray); font-size:13px;">Check your inbox and click the verification link.</p>
+            <button class="btn btn-primary" onclick="resendVerificationEmail()" style="margin-top:12px;">
+                <i class="fas fa-envelope"></i> Resend Verification
+            </button>
+            <div class="toggle-link" style="margin-top:12px;">
+                <a onclick="showLogin()">Back to Login</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== APP CONTAINER ===== -->
+<div id="appContainer">
+    
+    <!-- HEADER -->
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">⛪</div>
+            <div>
+                <h1>Usher <span>Tracker</span></h1>
+            </div>
+        </div>
+        <div class="header-actions">
+            <div class="cloud-status" id="cloudStatus">
+                <span class="status-dot" id="cloudDot"></span>
+                <span id="cloudText">Connecting...</span>
+            </div>
+            
+            <div style="display:flex; align-items:center; gap:6px; background:rgba(255,255,255,0.12); padding:4px 12px 4px 8px; border-radius:50px;">
+                <span style="font-size:10px; opacity:0.7;">⛪</span>
+                <select id="activeService" style="background:transparent; border:none; color:white; font-weight:600; font-size:12px; padding:4px 4px; cursor:pointer; outline:none;">
+                    <option value="Sunday 1st" style="color:#2C3E50;">Sunday 1st</option>
+                    <option value="Sunday 2nd" style="color:#2C3E50;">Sunday 2nd</option>
+                    <option value="Wednesday" style="color:#2C3E50;">Wednesday</option>
+                </select>
+                <span style="font-size:9px; opacity:0.5;" id="serviceStatus">✓ Auto</span>
+            </div>
+            
+            <div class="user-badge" id="userBadge">
+                <span class="avatar"><i class="fas fa-user"></i></span>
+                <span id="userName">User</span>
+                <span id="roleBadge" style="font-size:9px; background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:20px; margin-left:4px;">User</span>
+            </div>
+            <button class="btn btn-danger-outline btn-sm" onclick="logoutUser()">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+        </div>
+    </header>
+
+    <!-- STATS CARDS -->
+    <section class="stats-grid" id="statsGrid">
+        <div class="stat-card" onclick="showTab('today')">
+            <span class="stat-icon">✅</span>
+            <div class="stat-number" id="todayCount">0</div>
+            <div class="stat-label">Today</div>
+        </div>
+        <div class="stat-card" onclick="showTab('firstTimers')">
+            <span class="stat-icon">⭐</span>
+            <div class="stat-number" id="firstTimerCount">0</div>
+            <div class="stat-label">First Timers</div>
+        </div>
+        <div class="stat-card" onclick="showTab('secondTimers')">
+            <span class="stat-icon">🌟</span>
+            <div class="stat-number" id="secondTimerCount">0</div>
+            <div class="stat-label">Second Timers</div>
+        </div>
+        <div class="stat-card" onclick="showTab('members')">
+            <span class="stat-icon">👥</span>
+            <div class="stat-number" id="totalMembers">0</div>
+            <div class="stat-label">Members</div>
+        </div>
+        <div class="stat-card" onclick="showTab('absentees')">
+            <span class="stat-icon">⚠️</span>
+            <div class="stat-number" id="absentCount">0</div>
+            <div class="stat-label">At Risk</div>
+        </div>
+    </section>
+
+    <!-- TABS -->
+    <nav class="tabs">
+        <button class="tab active" data-tab="mark" onclick="showTab('mark')">
+            <i class="fas fa-check-circle"></i> <span class="tab-label">Mark</span>
+        </button>
+        <button class="tab" data-tab="mvp" onclick="showTab('mvp')">
+            <i class="fas fa-users"></i> <span class="tab-label">Timers</span>
+        </button>
+        <button class="tab" data-tab="filters" onclick="showTab('filters')">
+            <i class="fas fa-filter"></i> <span class="tab-label">Filters</span>
+        </button>
+        <button class="tab" data-tab="import" onclick="showTab('import')">
+            <i class="fas fa-upload"></i> <span class="tab-label">Import</span>
+        </button>
+        <button class="tab" data-tab="analytics" onclick="showTab('analytics')">
+            <i class="fas fa-chart-line"></i> <span class="tab-label">Stats</span>
+        </button>
+        <button class="tab" data-tab="settings" onclick="showTab('settings')">
+            <i class="fas fa-cog"></i> <span class="tab-label">Data</span>
+        </button>
+    </nav>
+
+    <!-- ===== SECTIONS ===== -->
+    
+    <!-- MARK ATTENDANCE -->
+    <section class="section active" id="section-mark">
+        <div class="section-header">
+            <h2><i class="fas fa-check-circle"></i> Mark Attendance</h2>
+            <div>
+                <span style="font-size:12px; color:var(--gray);" id="markDate"></span>
+                <button class="btn btn-sm btn-outline" onclick="resetSearch()">
+                    <i class="fas fa-undo"></i> Reset
+                </button>
+            </div>
+        </div>
+        
+        <div class="search-container">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="memberSearch" placeholder="🔍 Type name to search..." oninput="searchMembers()" autofocus>
+            <button class="clear-search" id="clearSearch" onclick="clearSearch()">✕</button>
+        </div>
+        
+        <div class="member-results" id="memberResults">
+            <div id="memberListItems"></div>
+        </div>
+        
+        <!-- UPDATED QUICK ADD - Added Location field -->
+        <div class="quick-add" id="quickAdd">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <strong><i class="fas fa-user-plus" style="color:var(--success);"></i> Add New Member</strong>
+                <button class="btn btn-sm btn-danger" onclick="hideQuickAdd()">✕</button>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>First Name <span style="color:red;">*</span></label><input type="text" id="quickFirstName" placeholder="First name"></div>
+                <div class="form-group"><label>Last Name <span style="color:red;">*</span></label><input type="text" id="quickLastName" placeholder="Last name"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Phone</label><input type="tel" id="quickPhone" placeholder="Phone number"></div>
+                <div class="form-group"><label>Full Address</label><input type="text" id="quickAddress" placeholder="Full address (e.g., 12 Church Street, Lagos)"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Location (for filtering)</label>
+                    <input type="text" id="quickLocation" placeholder="e.g., Lagos, Abuja, PH">
+                    <span style="font-size:10px; color:var(--gray);">Used for location-based filtering</span>
+                </div>
+                <div class="form-group"><label>Gender</label>
+                    <select id="quickGender"><option value="">Select</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option></select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Date of Birth (MM/DD)</label>
+                    <input type="text" id="quickDOB" placeholder="e.g., 01/15" maxlength="5">
+                </div>
+                <div class="form-group"><label>Marital Status</label>
+                    <select id="quickMaritalStatus"><option value="">Select</option><option value="Single">Single</option><option value="Married">Married</option><option value="Divorced">Divorced</option><option value="Widowed">Widowed</option></select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Worker?</label>
+                    <div class="toggle-group">
+                        <span style="font-size:12px; color:var(--gray);">No</span>
+                        <div class="toggle" id="quickWorkerToggle" onclick="toggleQuickWorker()"><div class="toggle-slider"></div></div>
+                        <span style="font-size:12px; color:var(--gray);">Yes</span>
+                        <input type="hidden" id="quickWorker" value="No">
+                    </div>
+                </div>
+            </div>
+            <button class="btn btn-success btn-block" onclick="quickAddMember()"><i class="fas fa-user-plus"></i> Add & Mark Present</button>
+            <div id="quickAddResult" style="margin-top:8px;"></div>
+        </div>
+        
+        <div id="noResults" style="display:none; text-align:center; padding:20px; color:var(--gray);">
+            <div style="font-size:40px; margin-bottom:8px;">🔍</div>
+            <p>No members found. Try a different search or</p>
+            <button class="btn btn-success" onclick="showQuickAdd()"><i class="fas fa-user-plus"></i> Add New Member</button>
+        </div>
+    </section>
+
+    <!-- TODAY -->
+    <section class="section" id="section-today">
+        <div class="section-header">
+            <h2><i class="fas fa-list"></i> Today's Attendance</h2>
+            <span class="text-muted" style="font-size:13px;" id="todayDate"></span>
+        </div>
+        <div class="export-options">
+            <button class="btn btn-success" onclick="exportTodayAttendance('excel')"><i class="fas fa-file-excel"></i> Excel</button>
+            <button class="btn btn-primary" onclick="exportTodayAttendance('pdf')"><i class="fas fa-file-pdf"></i> PDF</button>
+            <button class="btn btn-info" onclick="exportTodayAttendance('word')"><i class="fas fa-file-word"></i> Word</button>
+            <button class="btn btn-warning" onclick="exportTodayAttendance('share')"><i class="fas fa-share-alt"></i> Share</button>
+        </div>
+        <div id="todayAttendanceList"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+    </section>
+
+    <!-- MEMBERS -->
+    <section class="section" id="section-members">
+        <div class="section-header">
+            <h2><i class="fas fa-users"></i> All Members</h2>
+            <span class="text-muted" id="memberCount"></span>
+        </div>
+        <div class="export-options">
+            <button class="btn btn-success" onclick="exportMembers('excel')"><i class="fas fa-file-excel"></i> Excel</button>
+            <button class="btn btn-primary" onclick="exportMembers('pdf')"><i class="fas fa-file-pdf"></i> PDF</button>
+            <button class="btn btn-info" onclick="exportMembers('word')"><i class="fas fa-file-word"></i> Word</button>
+            <button class="btn btn-warning" onclick="exportMembers('share')"><i class="fas fa-share-alt"></i> Share</button>
+        </div>
+        <div class="search-container" style="margin-bottom:8px;">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="memberListSearch" placeholder="Search members..." oninput="loadMembers()">
+        </div>
+        <div id="memberList"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+    </section>
+
+    <!-- UPDATED FIRST TIMERS - Changed Address to Location -->
+    <section class="section" id="section-firstTimers">
+        <div class="section-header">
+            <h2><i class="fas fa-star" style="color:var(--warning);"></i> First Timers</h2>
+            <span class="text-muted">Visited only once</span>
+        </div>
+        <div class="filter-section">
+            <div class="filter-row">
+                <div class="form-group"><label>Filter by Location</label><select id="firstTimerLocationFilter" onchange="loadFirstTimers()"><option value="all">All Locations</option></select></div>
+                <div class="form-group"><label>Filter by Worker</label><select id="firstTimerWorkerFilter" onchange="loadFirstTimers()"><option value="all">All</option><option value="Yes">Workers Only</option><option value="No">Non-Workers</option></select></div>
+                <div class="form-group" style="display:flex; align-items:flex-end; gap:6px;">
+                    <button class="btn btn-sm btn-primary" onclick="loadFirstTimers()"><i class="fas fa-sync"></i> Apply</button>
+                </div>
+            </div>
+        </div>
+        <div class="export-options">
+            <button class="btn btn-success" onclick="exportTimers('first','excel')"><i class="fas fa-file-excel"></i> Excel</button>
+            <button class="btn btn-primary" onclick="exportTimers('first','pdf')"><i class="fas fa-file-pdf"></i> PDF</button>
+            <button class="btn btn-info" onclick="exportTimers('first','word')"><i class="fas fa-file-word"></i> Word</button>
+            <button class="btn btn-warning" onclick="exportTimers('first','share')"><i class="fas fa-share-alt"></i> Share</button>
+        </div>
+        <div id="firstTimerList"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+    </section>
+
+    <!-- UPDATED SECOND TIMERS - Changed Address to Location -->
+    <section class="section" id="section-secondTimers">
+        <div class="section-header">
+            <h2><i class="fas fa-star-half-alt" style="color:var(--info);"></i> Second Timers</h2>
+            <span class="text-muted">Visited twice</span>
+        </div>
+        <div class="filter-section">
+            <div class="filter-row">
+                <div class="form-group"><label>Filter by Location</label><select id="secondTimerLocationFilter" onchange="loadSecondTimers()"><option value="all">All Locations</option></select></div>
+                <div class="form-group"><label>Filter by Worker</label><select id="secondTimerWorkerFilter" onchange="loadSecondTimers()"><option value="all">All</option><option value="Yes">Workers Only</option><option value="No">Non-Workers</option></select></div>
+                <div class="form-group" style="display:flex; align-items:flex-end; gap:6px;">
+                    <button class="btn btn-sm btn-primary" onclick="loadSecondTimers()"><i class="fas fa-sync"></i> Apply</button>
+                </div>
+            </div>
+        </div>
+        <div class="export-options">
+            <button class="btn btn-success" onclick="exportTimers('second','excel')"><i class="fas fa-file-excel"></i> Excel</button>
+            <button class="btn btn-primary" onclick="exportTimers('second','pdf')"><i class="fas fa-file-pdf"></i> PDF</button>
+            <button class="btn btn-info" onclick="exportTimers('second','word')"><i class="fas fa-file-word"></i> Word</button>
+            <button class="btn btn-warning" onclick="exportTimers('second','share')"><i class="fas fa-share-alt"></i> Share</button>
+        </div>
+        <div id="secondTimerList"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+    </section>
+
+    <!-- UPDATED ABSENTEES - Added Location filter -->
+    <section class="section" id="section-absentees">
+        <div class="section-header">
+            <h2><i class="fas fa-user-slash"></i> At Risk Members</h2>
+            <span class="text-muted" style="font-size:12px;">Reach out before they leave</span>
+        </div>
+        <div class="filter-section">
+            <div class="filter-row">
+                <div class="form-group">
+                    <label>Time Period</label>
+                    <select id="absentPeriod" onchange="loadAbsentees()">
+                        <option value="0">⚠️ Today (Absent today)</option>
+                        <option value="7">⚠️ Last 7 Days</option>
+                        <option value="14">⚠️ Last 14 Days</option>
+                        <option value="21">⚠️ Last 21 Days</option>
+                        <option value="30" selected>⚠️ Last 30 Days</option>
+                        <option value="45">⚠️ Last 45 Days</option>
+                        <option value="60">⚠️ Last 60 Days</option>
+                        <option value="90">⚠️ Last 90 Days</option>
+                        <option value="180">⚠️ Last 180 Days</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Risk Level</label>
+                    <select id="absentRiskLevel" onchange="loadAbsentees()">
+                        <option value="all">All Risk Levels</option>
+                        <option value="high">🔴 High Risk (60+ days)</option>
+                        <option value="medium">🟡 Medium Risk (30-60 days)</option>
+                        <option value="low">🟢 Low Risk (7-30 days)</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Filter by Location</label>
+                    <select id="absentLocationFilter" onchange="loadAbsentees()">
+                        <option value="all">All Locations</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Filter by Worker</label>
+                    <select id="absentWorkerFilter" onchange="loadAbsentees()">
+                        <option value="all">All Members</option>
+                        <option value="Yes">Workers Only</option>
+                        <option value="No">Non-Workers</option>
+                    </select>
+                </div>
+                <div class="form-group" style="display:flex; align-items:flex-end; gap:6px;">
+                    <button class="btn btn-primary" onclick="loadAbsentees()"><i class="fas fa-search"></i> Find</button>
+                    <button class="btn btn-success" onclick="exportAbsentees('excel')"><i class="fas fa-file-excel"></i></button>
+                    <button class="btn btn-warning" onclick="exportAbsentees('share')"><i class="fas fa-share-alt"></i></button>
+                </div>
+            </div>
+            <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; font-size:12px;">
+                <span>🔴 <strong>High Risk:</strong> Absent 60+ days - Urgent follow-up needed</span>
+                <span>🟡 <strong>Medium Risk:</strong> Absent 30-60 days - Need to reach out</span>
+                <span>🟢 <strong>Low Risk:</strong> Absent 7-30 days - Quick check-in</span>
+            </div>
+        </div>
+        <div id="absenteeList"><div class="loading">Click "Find" to see who's at risk</div></div>
+    </section>
+
+    <!-- MVP DASHBOARD -->
+    <section class="section" id="section-mvp">
+        <div class="section-header">
+            <h2><i class="fas fa-users" style="color:var(--info);"></i> First/Second Timers Dashboard</h2>
+            <button class="btn btn-sm btn-primary" onclick="loadMVPDashboard()">
+                <i class="fas fa-sync"></i> Refresh
+            </button>
+        </div>
+        <div id="mvpDashboardContent"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+    </section>
+
+    <!-- FILTERS -->
+    <section class="section" id="section-filters">
+        <div class="section-header">
+            <h2><i class="fas fa-filter" style="color:var(--warning);"></i> Advanced Filters</h2>
+            <button class="btn btn-sm btn-outline" onclick="clearAllFilters()">
+                <i class="fas fa-undo"></i> Reset All
+            </button>
+        </div>
+        
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:12px; background:#F8F9FC; padding:16px; border-radius:10px;">
+            <div class="form-group">
+                <label>📍 Location</label>
+                <select class="filter-select" id="filterLocation" onchange="applyFilters()">
+                    <option value="all">All Locations</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>👤 Gender</label>
+                <select class="filter-select" id="filterGender" onchange="applyFilters()">
+                    <option value="all">All</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>💍 Marital Status</label>
+                <select class="filter-select" id="filterMarital" onchange="applyFilters()">
+                    <option value="all">All</option>
+                    <option value="Single">Single</option>
+                    <option value="Married">Married</option>
+                    <option value="Divorced">Divorced</option>
+                    <option value="Widowed">Widowed</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>🔧 Worker</label>
+                <select class="filter-select" id="filterWorker" onchange="applyFilters()">
+                    <option value="all">All</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>🎂 Birthday Month</label>
+                <select class="filter-select" id="filterBirthdayMonth" onchange="applyFilters()">
+                    <option value="all">All Months</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>📅 Birthday Day</label>
+                <select class="filter-select" id="filterBirthdayDay" onchange="applyFilters()">
+                    <option value="all">All Days</option>
+                </select>
+            </div>
+        </div>
+        
+        <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="applyFilters()">
+                <i class="fas fa-search"></i> Apply Filters
+            </button>
+            <button class="btn btn-success" onclick="exportFilteredData()">
+                <i class="fas fa-file-excel"></i> Export Filtered
+            </button>
+        </div>
+        
+        <div id="filteredResults" style="margin-top:16px;">
+            <div class="empty-state">
+                <span class="empty-icon">🔍</span>
+                <h3>Apply filters to see results</h3>
+                <p>Select your criteria above and click "Apply Filters"</p>
+            </div>
+        </div>
+        
+        <div style="margin-top:16px; border-top:1px solid #E8ECF0; padding-top:16px;">
+            <button class="btn btn-primary" onclick="loadFilteredAnalytics()" style="width:100%;">
+                <i class="fas fa-chart-bar"></i> Run Analytics on Filtered Data
+            </button>
+            <div id="filteredAnalyticsContent" style="margin-top:12px;">
+                <div class="empty-state" style="padding:20px;">
+                    <span class="empty-icon">📊</span>
+                    <p>Apply filters above and click "Run Analytics"</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- IMPORT -->
+    <section class="section" id="section-import">
+        <div class="section-header">
+            <h2><i class="fas fa-upload"></i> Import Members</h2>
+        </div>
+
+        <div class="import-section paste-import">
+            <span class="import-icon">📋</span>
+            <h3>Paste from Document</h3>
+            <p>Copy the text from your PDF or document and paste it below.</p>
+            <div class="form-group">
+                <label>Paste member list here</label>
+                <textarea id="pasteInput" rows="6" placeholder="Paste your member list here..."></textarea>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px;">
+                <button class="btn btn-success" onclick="parsePasteImport()"><i class="fas fa-magic"></i> Parse & Import</button>
+                <button class="btn btn-primary" onclick="clearPaste()"><i class="fas fa-eraser"></i> Clear</button>
+            </div>
+            <div id="pasteResult" style="margin-top:12px;"></div>
+            <div id="pastePreview" style="margin-top:12px; display:none;"></div>
+        </div>
+
+        <div class="import-section excel-import">
+            <span class="import-icon">📊</span>
+            <h3>Upload Excel or CSV File</h3>
+            <p>Upload your existing member list in one go.</p>
+            <div class="file-input-wrapper">
+                <label class="upload-btn">
+                    <i class="fas fa-cloud-upload-alt"></i> Choose File
+                    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" onchange="handleFileImport(event)">
+                </label>
+                <button class="template-btn" style="background:#3498DB;" onclick="downloadTemplate()">
+                    <i class="fas fa-download"></i> Download Template
+                </button>
+            </div>
+            <div class="import-preview" id="importPreview">
+                <h4 style="margin:8px 0; font-size:14px;">📋 Preview</h4>
+                <div id="previewContent"></div>
+                <div style="margin-top:12px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+                    <button class="btn btn-success" onclick="confirmImport()">
+                        <i class="fas fa-check"></i> Import All
+                    </button>
+                    <button class="btn btn-danger" onclick="cancelImport()">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="importResult" style="margin-top:12px;"></div>
+    </section>
+
+    <!-- ANALYTICS -->
+    <section class="section" id="section-analytics">
+        <div class="section-header">
+            <h2><i class="fas fa-chart-line"></i> Analytics</h2>
+            <div style="display:flex; gap:4px; flex-wrap:wrap;">
+                <button class="btn btn-sm btn-primary" onclick="setAnalyticsPeriod('week')">Week</button>
+                <button class="btn btn-sm btn-primary" onclick="setAnalyticsPeriod('month')">Month</button>
+                <button class="btn btn-sm btn-primary" onclick="setAnalyticsPeriod('quarter')">Quarter</button>
+            </div>
+        </div>
+        <div id="analyticsContent"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="section" id="section-settings">
+        <div class="section-header">
+            <h2><i class="fas fa-cog"></i> Settings</h2>
+        </div>
+        <div id="pushSettings" style="margin-bottom:12px;"></div>
+        <div id="storageInfo" style="background:#F8F9FC; padding:12px; border-radius:var(--radius-sm); margin-bottom:12px;"></div>
+        <div style="background:#EDE9FE; padding:14px; border-radius:var(--radius-sm); border:1px solid #6C3CE1;">
+            <h4 style="color:#5A2FC7; font-size:13px;">☁️ Cloud Data</h4>
+            <p style="font-size:12px; color:#4A4A6A;">All data is stored in Firebase Cloud and shared across all users.</p>
+            <p style="font-size:11px; color:#6B7280; margin-top:4px;">Changes are saved automatically.</p>
+        </div>
+        <div id="dataActionResult" class="mt-16"></div>
+    </section>
+</div>
+
+<!-- ===== MODAL ===== -->
+<div class="modal" id="memberModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-user" style="color:var(--primary);"></i> <span id="modalMemberName">Member</span></h3>
+            <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div id="modalBody"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+</div>
+
+<!-- ===== NOTIFICATION ===== -->
+<div class="notification" id="notification"></div>
+
+<!-- ===== JAVASCRIPT ===== -->
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/db.js"></script>
+<script src="js/ui-core.js"></script>
+<script src="js/ui-import.js"></script>
+<script src="js/ui-admin.js"></script>
+<script src="js/profiles.js"></script>
+<script src="js/analysis.js"></script>
+<script src="js/mvp.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
