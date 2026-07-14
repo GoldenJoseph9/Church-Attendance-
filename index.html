@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>⛪ Church Attendance - Usher Edition</title>
+    <title>⛪ Dominion City Ota - Attendance Tracker</title>
     
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
@@ -28,7 +28,7 @@
 <div id="loginPage">
     <div class="login-box">
         <div class="logo">⛪</div>
-        <h1>Usher Tracker</h1>
+        <h1>Dominion City <span>Ota</span></h1>
         <p>Sign in to manage church attendance</p>
         
         <div id="loginForm">
@@ -145,7 +145,7 @@
         <div class="header-left">
             <div class="logo">⛪</div>
             <div>
-                <h1>Usher <span>Tracker</span></h1>
+                <h1>Dominion City <span>Ota</span></h1>
             </div>
         </div>
         <div class="header-actions">
@@ -611,14 +611,52 @@
         </div>
         <div id="pushSettings" style="margin-bottom:12px;"></div>
         <div id="storageInfo" style="background:#F8F9FC; padding:12px; border-radius:var(--radius-sm); margin-bottom:12px;"></div>
-        <div style="background:#EDE9FE; padding:14px; border-radius:var(--radius-sm); border:1px solid #6C3CE1;">
+        
+        <!-- Cloud Data Info -->
+        <div style="background:#EDE9FE; padding:14px; border-radius:var(--radius-sm); border:1px solid #6C3CE1; margin-bottom:12px;">
             <h4 style="color:#5A2FC7; font-size:13px;">☁️ Cloud Data</h4>
             <p style="font-size:12px; color:#4A4A6A;">All data is stored in Firebase Cloud and shared across all users.</p>
             <p style="font-size:11px; color:#6B7280; margin-top:4px;">Changes are saved automatically.</p>
         </div>
+        
+        <!-- Developer Credit -->
+        <div style="padding:16px; background:#F8F9FC; border-radius:8px; border-left:4px solid #6C3CE1;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <div>
+                    <strong style="font-size: 14px;">👨‍💻 Nnoko Gabriel Ezinna</strong>
+                    <div style="font-size: 12px; color: var(--gray);">
+                        📧 golden31joseph@gmail.com
+                    </div>
+                    <div style="font-size: 12px; color: var(--gray);">
+                        📱 09043930196
+                    </div>
+                </div>
+                <div style="font-size: 11px; color: var(--gray); text-align: right;">
+                    <div>Developer</div>
+                    <div>© 2024</div>
+                </div>
+            </div>
+        </div>
+        
         <div id="dataActionResult" class="mt-16"></div>
     </section>
 </div>
+
+<!-- ===== FOOTER ===== -->
+<footer style="
+    text-align: center;
+    padding: 12px;
+    color: var(--gray);
+    font-size: 11px;
+    border-top: 1px solid #E8ECF0;
+    margin-top: 20px;
+">
+    <span>Built by <strong>Nnoko Gabriel Ezinna</strong></span>
+    <span style="opacity: 0.4; margin: 0 6px;">|</span>
+    <span style="opacity: 0.5;">Dominion City Ota</span>
+    <span style="opacity: 0.4; margin: 0 6px;">|</span>
+    <span style="opacity: 0.4;">© 2024</span>
+</footer>
 
 <!-- ===== MODAL ===== -->
 <div class="modal" id="memberModal">
